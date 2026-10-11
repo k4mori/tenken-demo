@@ -196,6 +196,36 @@ details.thp summary{padding:10px 12px;font-weight:700;font-size:16px;cursor:poin
 .tht th{font-weight:700;background:var(--bar)}
 .tht input{width:76px;min-height:30px;padding:2px 4px;font-size:16px;text-align:right}
 .tht input.ch{background:#fff8e0}
+/* 基準値スライダー（本番と同じ） */
+.thr{border-top:1px solid var(--line);padding:8px 10px 10px}
+.thr .t1{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:15px}
+.thr .t1 .nm{flex:1;min-width:180px}
+.thr .t1 input{width:84px;min-height:36px;padding:2px 6px;font-size:17px;text-align:right}
+.thr .t1 input.ch{background:#fff8e0}
+.thr .t1 input:disabled{background:var(--off);color:var(--ink);opacity:1}
+.thbar{position:relative;height:44px;margin:48px 18px 0;--a:0%;--b:100%}
+.thbar .tr{position:absolute;left:0;right:0;top:14px;height:16px;border-radius:8px;background:linear-gradient(90deg,#d9d5cc 0,#d9d5cc var(--a),#2e8b3e var(--a),#2e8b3e var(--b),#d9d5cc var(--b),#d9d5cc 100%)}
+.thbar .tv{position:absolute;top:-42px;display:inline-flex;align-items:center;font-size:20px;font-weight:700;color:#fff;background:#2e8b3e;border-radius:10px;padding:0 12px;white-space:nowrap;line-height:34px;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.thbar .tv:empty{display:none}
+.thbar .tv small{font-size:15px;font-weight:700;margin-right:8px;letter-spacing:.05em}
+.thbar .tv:after{content:"";position:absolute;bottom:-7px;border:7px solid transparent;border-bottom:0;border-top-color:#2e8b3e}
+.thbar span.tv:nth-of-type(1){background:#a5d6a7;color:#1b4d22}.thbar span.tv:nth-of-type(1):after{border-top-color:#a5d6a7}
+.thbar span.tv:nth-of-type(2){background:#1b5e27;color:#fff}.thbar span.tv:nth-of-type(2):after{border-top-color:#1b5e27}
+.thbar input[type=range]:nth-of-type(1)::-webkit-slider-thumb{border-color:#7cc47f}
+.thbar input[type=range]:nth-of-type(2)::-webkit-slider-thumb{border-color:#1b5e27}
+.thbar input[type=range]:disabled::-webkit-slider-thumb{border-color:#9aa3a8}
+.thbar .tv.r{transform:translateX(calc(-100% + 18px))}.thbar .tv.r:after{right:11px}
+.thbar .tv.l{transform:translateX(-18px)}.thbar .tv.l:after{left:11px}
+.thbar input[type=range]{position:absolute;left:-14px;right:-14px;width:calc(100% + 28px);top:0;height:44px;margin:0;padding:0;background:none;border:0;min-height:0;-webkit-appearance:none;appearance:none;pointer-events:none}
+.thbar input[type=range]::-webkit-slider-runnable-track{background:none;height:44px}
+.thbar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:30px;height:30px;border-radius:50%;background:#fff;border:5px solid #2e8b3e;box-shadow:0 1px 3px rgba(0,0,0,.25);margin-top:7px}
+.thbar input[type=range]::-moz-range-thumb{pointer-events:auto;width:22px;height:22px;border-radius:50%;background:#fff;border:5px solid #2e8b3e}
+.thbar input[type=range]:disabled::-webkit-slider-thumb{border-color:#9aa3a8;box-shadow:none}
+.thlab{display:flex;margin:6px 14px 0;font-size:14px;color:#555}
+.thlab span{text-align:center;overflow:hidden;white-space:nowrap}
+.thdots{position:relative;height:14px;margin:2px 6px 0}
+.thdots i{position:absolute;top:3px;width:8px;height:8px;margin-left:-4px;border-radius:50%;background:var(--accent);opacity:.35}
+.thdots i.out{background:var(--err);opacity:.9}
 /* ---- 地図 ---- */
 .mapwrap{display:flex;flex-direction:column;height:100%}
 .mapbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 8px;border-bottom:1px solid var(--line);background:var(--bg)}
@@ -1514,8 +1544,7 @@ async function viewSet() {
   $('#main').innerHTML = `<div class="page">
     ${manListHtml()}
     <h2 id="thr">基準値（下限 〜 上限）</h2>
-    <div class="card"><p class="muted" style="margin:0 0 6px">入力した数値が上限より大きいとき・下限より小さいときは、どちらも<b style="color:#b3261e">赤</b>で表示します。最初は 2026年9・10月の実績の最小〜最大を入れています。空欄にすると判定しません。変えた欄は黄色になります。</p>
-      <div class="row"><button class="small danger" onclick="resetTh()">全部を最初の値に戻す</button></div></div>
+    <div class="card"><div id="thhead">${thHeadHtml()}</div></div>
     ${thSettingsHtml()}
     <h2 id="names">点検者の名前</h2>
     <div class="card">
@@ -1534,30 +1563,133 @@ async function viewSet() {
     <div class="card muted">${est}<br>バージョン ${VERSION}<br>※ <b>デモ版です。</b>表示している建物名・機器名・数値はすべて架空です。入力した内容はこの端末の中だけに保存され、どこにも送信されません。</div></div>`;
   paintSync();
 }
+/* ---- 基準値の設定（スライダー。デモ版はロックなしで誰でも試せる） ---- */
+let TH_OPEN = true; let TH_VALS = null;
+function thHeadHtml() {
+  return `<p class="muted" style="margin:0 0 6px">入力した数値が上限より大きいとき・下限より小さいときは、どちらも<b style="color:#b3261e">赤</b>で表示します。最初は 2026年9・10月の実績の最小〜最大を入れています。空欄にすると判定しません。変えた欄は黄色になります。<br>
+    横棒の<b>緑</b>が正常の範囲です。</p>
+    <div class="row"><button class="small" onclick="thSuggestAll()">全部をおすすめ範囲にする</button><button class="small danger" onclick="resetTh()">全部を最初の値に戻す</button></div>
+    <p class="muted" style="margin:6px 0 0">つまみを指で動かしてください。「おすすめ」は、これまでの実績から極端な値（上下5%）を除いた範囲を自動で入れます。<br>※ デモ版では管理者パスワードなしで変更できます（本番は管理者のみ）。</p>`;
+}
+function thRefresh() { const h = document.getElementById('thhead'); if (h) h.innerHTML = thHeadHtml(); document.querySelectorAll('details.thp[open]').forEach(d => thFill(d)); }
+async function thLoadVals() {
+  if (TH_VALS) return TH_VALS; const m = await valsRange(IDBKeyRange.lowerBound('')); const V = {};
+  for (const [k, rec] of m) { const v = rec && rec.v; if (typeof v !== 'number' || isNaN(v)) continue; const p = k.split('|'); const kk = p[1] + '|' + p[2]; (V[kk] || (V[kk] = [])).push(v); }
+  return TH_VALS = V;
+}
+const decOf = x => { const s = String(x); const i = s.indexOf('.'); return i < 0 ? 0 : Math.min(3, s.length - i - 1); };
+function thScale(k, vals) {
+  // 外れ値に引っぱられないよう、実績の中心（上下5%を除く）を基準に横棒の幅を決める。はみ出した実績は端に赤で出す
+  const [si, r] = k.split('|').map(Number); const [lo, hi] = thOf(si, r); const d0 = (SPEC.thDef || {})[k] || [];
+  const all = vals.concat([lo, hi, d0[0], d0[1]].filter(isNum)); if (!all.length) return null;
+  const d = Math.max(0, ...all.map(decOf)); const st = Math.pow(10, -d);
+  let mn, mx; const sg = thSuggest(vals, d);
+  if (sg) {
+    const w = Math.max(sg[1] - sg[0], Math.abs(sg[1]) * 0.02, st * 10); mn = sg[0] - w * 0.6; mx = sg[1] + w * 0.6;
+    for (const x of [lo, hi]) if (isNum(x) && x >= sg[0] - w * 3 && x <= sg[1] + w * 3) { mn = Math.min(mn, x - w * 0.1); mx = Math.max(mx, x + w * 0.1); }
+  } else { mn = Math.min(...all); mx = Math.max(...all); const pad = (mx - mn) * 0.1 || Math.abs(mx) * 0.1 || 1; mn -= pad; mx += pad; }
+  if (mn < 0 && Math.min(...all) >= 0) mn = 0;
+  mn = Math.floor(mn / st) * st; mx = Math.ceil(mx / st) * st;
+  return { mn: +mn.toFixed(d), mx: +mx.toFixed(d), st, d };
+}
+function thSuggest(vals, d) {
+  if (vals.length < 5) return null; const a = vals.slice().sort((x, y) => x - y);
+  const q = p => a[Math.min(a.length - 1, Math.max(0, Math.round((a.length - 1) * p)))];
+  const st = Math.pow(10, -d); return [+(Math.floor(q(0.05) / st) * st).toFixed(d), +(Math.ceil(q(0.95) / st) * st).toFixed(d)];
+}
+const pct = (x, sc) => Math.max(0, Math.min(100, (x - sc.mn) / (sc.mx - sc.mn) * 100));
+function thRowHtml(p, si, rr, V) {
+  const k = si + '|' + rr[0]; const row = rowDef(si, rr[0]); const [lo, hi] = thOf(si, rr[0]); const ch = k in thAll();
+  const vals = V[k] || []; const sc = thScale(k, vals); const dis = TH_OPEN ? '' : 'disabled'; const v = x => isNum(x) ? x : '';
+  const head = `<div class="t1"><span class="nm">${esc(rr[1])}${row.std ? `<span class="muted"> （${esc(row.std)}）</span>` : ''} <span class="muted">${esc(row.unit || '')}</span></span>
+    ${sc ? '' : `<span class="muted">下限</span><input class="${ch ? 'ch' : ''}" inputmode="decimal" value="${v(lo)}" ${dis} onchange="thNumK('${k}',0,this)">
+    <span class="muted">上限</span><input class="${ch ? 'ch' : ''}" inputmode="decimal" value="${v(hi)}" ${dis} onchange="thNumK('${k}',1,this)">`}
+    ${TH_OPEN && thSuggest(vals, sc ? sc.d : 0) ? `<button class="small" onclick="thSuggestOne('${k}')">おすすめ</button>` : ''}</div>`;
+  if (!sc) return `<div class="thr" data-k="${k}">${head}</div>`;
+  const a = isNum(lo) ? pct(lo, sc) : 0, b = isNum(hi) ? pct(hi, sc) : 100;
+  const step = vals.length > 160 ? Math.ceil(vals.length / 160) : 1;
+  const dots = vals.filter((_, i) => i % step === 0).map(x => `<i class="${(isNum(lo) && x < lo) || (isNum(hi) && x > hi) ? 'out' : ''}" style="left:${pct(x, sc).toFixed(2)}%"></i>`).join('');
+  const lowOut = vals.filter(x => x < sc.mn), highOut = vals.filter(x => x > sc.mx);
+  const edge = (a, w) => a.length ? `<b style="color:var(--err)">${w}${a.length}件（${Math.min(...a)}${a.length > 1 ? '〜' + Math.max(...a) : ''}）</b>` : '';
+  return `<div class="thr" data-k="${k}" data-mn="${sc.mn}" data-mx="${sc.mx}" data-d="${sc.d}">${head}
+    <div class="thbar" style="--a:${a}%;--b:${b}%"><div class="tr"></div><span class="tv ${a < 12 ? 'l' : 'r'}" style="left:${a}%">${isNum(lo) ? '<small>下限</small>' + lo : ''}</span><span class="tv ${b > 88 ? 'r' : 'l'}" style="left:${b}%">${isNum(hi) ? '<small>上限</small>' + hi : ''}</span>
+      <input type="range" min="${sc.mn}" max="${sc.mx}" step="${sc.st}" value="${isNum(lo) ? lo : sc.mn}" ${dis} oninput="thSlide(this,0)" onchange="thSlideEnd(this,0)">
+      <input type="range" min="${sc.mn}" max="${sc.mx}" step="${sc.st}" value="${isNum(hi) ? hi : sc.mx}" ${dis} oninput="thSlide(this,1)" onchange="thSlideEnd(this,1)"></div>
+    <div class="thlab"><span style="width:${a}%">低い</span><span style="width:${b - a}%">正常</span><span style="width:${100 - b}%">高い</span></div></div>`;
+}
+async function thFill(det) {
+  const p = SPEC.places.find(x => x.id === det.dataset.pid); if (!p) return; const V = await thLoadVals(); const si = sheetIdx(p.sheet); let html = '';
+  for (const sec of p.sections) {
+    const nums = sec.rows.filter(rr => rowDef(si, rr[0]).kind === 'num' && !isOff(p, rr[0])); if (!nums.length) continue;
+    html += `<div class="sbar" style="padding:6px 10px">${esc(sec.title)}</div>` + nums.map(rr => thRowHtml(p, si, rr, V)).join('');
+  }
+  det.querySelector('.thbody').innerHTML = html;
+}
 function thSettingsHtml() {
-  const T = thAll(); const D = SPEC.thDef || {};
   return SPEC.places.map(p => {
-    const si = sheetIdx(p.sheet); let rows = '';
-    for (const sec of p.sections) {
-      const nums = sec.rows.filter(rr => rowDef(si, rr[0]).kind === 'num' && !isOff(p, rr[0]));
-      if (!nums.length) continue;
-      rows += `<tr><th colspan="4">${esc(sec.title)}</th></tr>` + nums.map(rr => { const k = si + '|' + rr[0]; const [lo, hi] = thOf(si, rr[0]); const ch = k in T; const row = rowDef(si, rr[0]);
-        const v = x => isNum(x) ? x : '';
-        return `<tr><td>${esc(rr[1])}${row.std ? `<span class="muted"> （${esc(row.std)}）</span>` : ''}</td><td>${esc(row.unit || '')}</td>
-          <td><input class="${ch ? 'ch' : ''}" inputmode="decimal" value="${v(lo)}" onchange="setTh('${k}',0,this)"></td><td><input class="${ch ? 'ch' : ''}" inputmode="decimal" value="${v(hi)}" onchange="setTh('${k}',1,this)"></td></tr>`; }).join('');
-    }
-    return rows ? `<details class="thp"><summary>${esc(p.label)}</summary><table class="tht"><tr><th>項目</th><th>単位</th><th>下限</th><th>上限</th></tr>${rows}</table></details>` : '';
+    const si = sheetIdx(p.sheet);
+    const has = p.sections.some(sec => sec.rows.some(rr => rowDef(si, rr[0]).kind === 'num' && !isOff(p, rr[0])));
+    return has ? `<details class="thp" data-pid="${p.id}" ontoggle="if(this.open)thFill(this)"><summary>${esc(p.label)}</summary><div class="thbody"><p class="muted" style="padding:0 12px">読み込み中…</p></div></details>` : '';
   }).join('');
 }
-function setTh(k, i, inp) {
-  const T = thAll(); const [si, r] = k.split('|').map(Number); const cur = thOf(si, r).slice();
+function thSave(k, lo, hi) {
+  const T = thAll(); T[k] = [lo, hi]; LS.set('th', T); return true;
+}
+function thMarks(box, a, b, lo, hi) {
+  const tv = box.querySelectorAll('.thbar .tv'); if (tv.length) {
+    tv[0].style.left = a + '%'; tv[0].innerHTML = lo === '' || lo == null ? '' : '<small>下限</small>' + lo; tv[0].className = 'tv ' + (a < 12 ? 'l' : 'r');
+    tv[1].style.left = b + '%'; tv[1].innerHTML = hi === '' || hi == null ? '' : '<small>上限</small>' + hi; tv[1].className = 'tv ' + (b > 88 ? 'r' : 'l'); }
+  const lb = box.querySelectorAll('.thlab span'); if (lb.length) { lb[0].style.width = a + '%'; lb[1].style.width = (b - a) + '%'; lb[2].style.width = (100 - b) + '%'; }
+}
+function thPaint(box) {
+  const k = box.dataset.k; const [si, r] = k.split('|').map(Number); const [lo, hi] = thOf(si, r);
+  const sc = { mn: +box.dataset.mn, mx: +box.dataset.mx };
+  const inp = box.querySelectorAll('.t1 input'); if (inp.length) { inp[0].value = isNum(lo) ? lo : ''; inp[1].value = isNum(hi) ? hi : ''; inp.forEach(e => e.classList.add('ch')); }
+  if (!box.dataset.mn) return;
+  const bar = box.querySelector('.thbar'); const pa = isNum(lo) ? pct(lo, sc) : 0, pb = isNum(hi) ? pct(hi, sc) : 100; bar.style.setProperty('--a', pa + '%'); bar.style.setProperty('--b', pb + '%'); thMarks(box, pa, pb, isNum(lo) ? lo : '', isNum(hi) ? hi : '');
+  const rg = bar.querySelectorAll('input[type=range]'); rg[0].value = isNum(lo) ? lo : sc.mn; rg[1].value = isNum(hi) ? hi : sc.mx;
+  box.querySelectorAll('.thdots i').forEach(i => { const x = sc.mn + parseFloat(i.style.left) / 100 * (sc.mx - sc.mn); i.classList.toggle('out', (isNum(lo) && x < lo - 1e-9) || (isNum(hi) && x > hi + 1e-9)); });
+}
+function thSlide(el, i) {
+  const box = el.closest('.thr'); const rg = box.querySelectorAll('.thbar input[type=range]'); const d = +box.dataset.d;
+  let a = +rg[0].value, b = +rg[1].value; if (a > b) { if (i === 0) a = b; else b = a; rg[i].value = i ? b : a; }
+  const sc = { mn: +box.dataset.mn, mx: +box.dataset.mx }; const bar = box.querySelector('.thbar');
+  bar.style.setProperty('--a', pct(a, sc) + '%'); bar.style.setProperty('--b', pct(b, sc) + '%'); thMarks(box, pct(a, sc), pct(b, sc), (+a).toFixed(d), (+b).toFixed(d));
+  const inp = box.querySelectorAll('.t1 input'); if (inp[i]) inp[i].value = (+(i ? b : a)).toFixed(d);
+}
+function thSlideEnd(el, i) {
+  const box = el.closest('.thr'); const k = box.dataset.k; const [si, r] = k.split('|').map(Number); const cur = thOf(si, r).slice(); const d = +box.dataset.d;
+  cur[i] = +(+el.value).toFixed(d); if (isNum(cur[0]) && isNum(cur[1]) && cur[0] > cur[1]) cur[i] = cur[1 - i];
+  if (thSave(k, cur[0], cur[1])) { thPaint(box); toast('保存しました', 1000); }
+}
+function thNum(inp, i) { return thNumK(inp.closest('.thr').dataset.k, i, inp); }
+function thNumK(k, i, inp) {
+  const [si, r] = k.split('|').map(Number); const cur = thOf(si, r).slice();
   const t = inp.value.trim().replace(/[０-９．－]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace('ー', '-');
   const n = t === '' ? null : Number(t);
   if (t !== '' && isNaN(n)) { toast('数字を入れてください'); inp.value = isNum(cur[i]) ? cur[i] : ''; return; }
-  cur[i] = n; T[k] = cur; LS.set('th', T);
-  inp.closest('tr').querySelectorAll('input').forEach(e => e.classList.add('ch')); toast('保存しました', 1000);
+  cur[i] = n; if (isNum(cur[0]) && isNum(cur[1]) && cur[0] > cur[1]) { toast('下限が上限より大きくなっています'); inp.value = isNum(thOf(si, r)[i]) ? thOf(si, r)[i] : ''; return; }
+  if (!thSave(k, cur[0], cur[1])) { inp.value = isNum(thOf(si, r)[i]) ? thOf(si, r)[i] : ''; return; }
+  const box = inp.closest('.thr'); const sc = { mn: +box.dataset.mn, mx: +box.dataset.mx };
+  if (box.dataset.mn && ((isNum(n) && (n < sc.mn || n > sc.mx)))) { const det = box.closest('details'); if (det) thFill(det); } else thPaint(box);
+  toast('保存しました', 1000);
 }
-async function resetTh() { if (!(await confirmDlg('基準値を全部、最初の値（9・10月の実績）に戻しますか？', '戻す'))) return; LS.set('th', {}); viewSet(); }
+function setTh(k, i, inp) { return thNumK(k, i, inp); }
+async function thSuggestOne(k) {
+  const V = await thLoadVals(); const vals = V[k] || []; const sc = thScale(k, vals); const sg = sc && thSuggest(vals, sc.d); if (!sg) return;
+  if (thSave(k, sg[0], sg[1])) { const box = document.querySelector(`.thr[data-k="${k}"]`); if (box) thPaint(box); toast(`おすすめ範囲 ${sg[0]} 〜 ${sg[1]} にしました`, 2000); }
+}
+async function thSuggestAll() {
+  const V = await thLoadVals(); const T = thAll(); let n = 0;
+  for (const p of SPEC.places) { const si = sheetIdx(p.sheet); for (const sec of p.sections) for (const rr of sec.rows) {
+    if (rowDef(si, rr[0]).kind !== 'num' || isOff(p, rr[0])) continue; const k = si + '|' + rr[0]; if (T[k]) continue;
+    const vals = V[k] || []; const sc = thScale(k, vals); const sg = sc && thSuggest(vals, sc.d); if (sg) { T[k] = sg; n++; } } }
+  if (!(await confirmDlg(`まだ変えていない ${n}項目の基準値を、おすすめ範囲（過去の実績の上下5%を除いた範囲）にします。<br>自分で変えた項目（黄色）はそのままです。`, 'おすすめ範囲にする'))) return;
+  LS.set('th', T); thRefresh(); toast(`${n}項目をおすすめ範囲にしました`, 2500);
+}
+async function resetTh() {
+  if (!(await confirmDlg('基準値を全部、最初の値（9・10月の実績の最小〜最大）に戻しますか？', '戻す'))) return; LS.set('th', {}); thRefresh();
+}
 function addName() { const v = $('#nn').value.trim(); if (!v) return; const n = LS.get('inspectors', []); if (!n.includes(v)) n.push(v); LS.set('inspectors', n); viewSet(); }
 async function delName(i) { const n = LS.get('inspectors', []); if (!(await confirmDlg(`「${esc(n[i])}」を一覧から削除しますか？（入力済みの記録は消えません）`, '削除'))) return; n.splice(i, 1); LS.set('inspectors', n); viewSet(); }
 function moveName(i, d) { const n = LS.get('inspectors', []); [n[i], n[i + d]] = [n[i + d], n[i]]; LS.set('inspectors', n); viewSet(); }
